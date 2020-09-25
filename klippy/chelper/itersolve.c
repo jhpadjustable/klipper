@@ -52,17 +52,6 @@ itersolve_gen_steps_range(struct stepper_kinematics *sk, struct move *m
                             / (guess_dist - og_dist));
         if (!(next_time > low_time && next_time < high_time)) {
             // Next guess is outside bounds checks - validate it
-            double rel_dist = sdir ? guess_dist : -guess_dist;
-            if (guess.time > last.time
-                && rel_dist < -(2.*half_step + .000000001)) {
-                // Found direction change
-                sdir = !sdir;
-                target = last.position + (sdir ? half_step : -half_step);
-                high_time = guess.time;
-                low_time = last.time;
-                is_dir_change = have_bound = 1;
-                continue;
-            }
             if (have_bound) {
                 // A poor guess - fall back to bisection
                 next_time = (low_time + high_time) * .5;
@@ -87,8 +76,16 @@ itersolve_gen_steps_range(struct stepper_kinematics *sk, struct move *m
             // Guess does not look close enough - update bounds
             double rel_dist = sdir ? guess_dist : -guess_dist;
             if (rel_dist > 0.) {
+                // Found position past target, so step is definitely present
                 high_time = guess.time;
                 have_bound = 1;
+            } else if (rel_dist < -(2.*half_step + .000000010)) {
+                // Found direction change
+                sdir = !sdir;
+                target = last.position + (sdir ? half_step : -half_step);
+                high_time = guess.time;
+                low_time = last.time;
+                is_dir_change = have_bound = 1;
             } else {
                 low_time = guess.time;
             }
